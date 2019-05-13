@@ -1,25 +1,33 @@
-<?php
+<?php 
 
-require('../vendor/autoload.php');
+require 'funciones.php';
+$fotos_por_pagina = 8;
 
-$app = new Silex\Application();
-$app['debug'] = true;
+$pagina_actual = (isset($_GET['p']) ? (int)$_GET['p'] : 1);
+$inicio = ($pagina_actual > 1) ? $pagina_actual * $fotos_por_pagina - $fotos_por_pagina: 0;
 
-// Register the monolog logging service
-$app->register(new Silex\Provider\MonologServiceProvider(), array(
-  'monolog.logfile' => 'php://stderr',
-));
+$conexion = conexion('practica-galeria', 'root', '');
 
-// Register view rendering
-$app->register(new Silex\Provider\TwigServiceProvider(), array(
-    'twig.path' => __DIR__.'/views',
-));
+if (!$conexion) {
+	die();
+}
 
-// Our web handlers
+$statement = $conexion->prepare("SELECT SQL_CALC_FOUND_ROWS * FROM fotos LIMIT $inicio, $fotos_por_pagina");
 
-$app->get('/', function() use($app) {
-  $app['monolog']->addDebug('logging output.');
-  return $app['twig']->render('index.twig');
-});
+$statement->execute();
+$fotos = $statement->fetchAll();
 
-$app->run();
+if (!$fotos) {
+	header('Location: index.php');
+}
+
+$statement = $conexion->prepare("SELECT FOUND_ROWS() as total_filas");
+$statement->execute();
+$total_post = $statement->fetch()['total_filas'];
+
+$total_paginas = ($total_post / $fotos_por_pagina);
+$total_paginas = ceil($total_paginas);
+
+require 'views/index.view.php';
+
+ ?>
